@@ -11,13 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::logging::api::{metric_log_v1, MetricLogV1};
+use crate::logging::api::{metric_log_v1, MetricLogV1, Sample, TraceId};
 use crate::logging::logger::r#async::Closed;
 use crate::logging::logger::{self, Appender, Payload};
 use crate::logging::metric::gauge_reporter::GaugeReporter;
 use crate::shutdown_hooks::ShutdownHooks;
 use conjure_error::Error;
-use conjure_object::Utc;
+use conjure_object::{DateTime, Utc};
 use futures_sink::Sink;
 use futures_util::{ready, SinkExt, Stream};
 use pin_project::pin_project;
@@ -29,7 +29,7 @@ use std::time::Duration;
 use tokio::task;
 use tokio::time::{self, Instant};
 use witchcraft_log::warn;
-use witchcraft_metrics::{Metric, MetricId, MetricRegistry};
+use witchcraft_metrics::{Metric, MetricId, MetricRegistry, Snapshot};
 use witchcraft_server_config::install::InstallConfig;
 
 mod gauge_reporter;
@@ -37,6 +37,19 @@ mod gauge_reporter;
 const LOG_INTERVAL: Duration = Duration::from_secs(30);
 const NANOS_PER_MICRO: i64 = 1_000;
 const NANOS_PER_MICRO_F64: f64 = NANOS_PER_MICRO as f64;
+
+struct Exemplar {
+    instant: Instant,
+    time: DateTime<Utc>,
+    trace_id: zipkin::TraceId,
+}
+
+pub fn registry() -> Arc<MetricRegistry> {
+    let mut registry = MetricRegistry::new();
+    registry.set_exemplar_provider(provide_exemplar);
+
+    Arc::new(registry)
+}
 
 pub async fn init(
     metrics: &Arc<MetricRegistry>,
@@ -96,6 +109,7 @@ async fn log_metrics(mut appender: Appender<MetricLogV1>, metrics: Arc<MetricReg
                         .insert_values("p99", snapshot.value(0.99))
                         .insert_values("p999", snapshot.value(0.999))
                         .insert_values("count", m.count())
+                        .samples(extract_samples(&*snapshot))
                 }
                 Metric::Timer(m) => {
                     let snapshot = m.snapshot();
@@ -107,6 +121,7 @@ async fn log_metrics(mut appender: Appender<MetricLogV1>, metrics: Arc<MetricReg
                         .insert_values("p999", snapshot.value(0.999) / NANOS_PER_MICRO_F64)
                         .insert_values("count", m.count())
                         .insert_values("1m", m.one_minute_rate())
+                        .samples(extract_samples(&*snapshot))
                 }
             };
 
@@ -165,6 +180,41 @@ fn finish_log(
                 .map(|(k, v)| (k.to_string(), v.to_string())),
         )
         .build()
+}
+
+// We only track exemplars for calls with a sampled trace active.
+fn provide_exemplar() -> Option<Exemplar> {
+    let span = zipkin::current()?;
+
+    if span.sampled() != Some(true) {
+        return None;
+    }
+
+    Some(Exemplar {
+        instant: Instant::now(),
+        time: Utc::now(),
+        trace_id: span.trace_id(),
+    })
+}
+
+// We report the single exemplar with the highest value recorded within the logging window.
+fn extract_samples(snapshot: &dyn Snapshot) -> impl Iterator<Item = Sample> {
+    let cutoff = Instant::now() - LOG_INTERVAL;
+
+    snapshot
+        .exemplars()
+        // consumers can override our exemplar setup so it's not a bug if the downcast fails.
+        .filter_map(|(v, e)| e.downcast_ref::<Exemplar>().map(|e| (v, e)))
+        .filter(|(_, e)| e.instant >= cutoff)
+        .max_by_key(|(v, _)| *v)
+        .map(|(v, e)| {
+            Sample::builder()
+                .value(v)
+                .time(e.time)
+                .trace_id(TraceId(e.trace_id.to_string()))
+                .build()
+        })
+        .into_iter()
 }
 
 async fn idle(

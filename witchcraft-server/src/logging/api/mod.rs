@@ -37,6 +37,8 @@ pub use self::request_log_v1::RequestLogV1;
 #[doc(inline)]
 pub use self::request_log_v2::RequestLogV2;
 #[doc(inline)]
+pub use self::sample::Sample;
+#[doc(inline)]
 pub use self::sensitivity_tagged_value::SensitivityTaggedValue;
 #[doc(inline)]
 pub use self::service_log_v1::ServiceLogV1;
@@ -85,6 +87,7 @@ pub mod organization_id;
 pub mod request_log;
 pub mod request_log_v1;
 pub mod request_log_v2;
+pub mod sample;
 pub mod sensitivity_tagged_value;
 pub mod service_log_v1;
 pub mod session_id;

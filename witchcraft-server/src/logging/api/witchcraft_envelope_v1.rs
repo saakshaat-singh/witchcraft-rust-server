@@ -38,6 +38,10 @@ pub struct WitchcraftEnvelopeV1 {
         )
     )]
     payload: conjure_object::Any,
+    #[builder(into)]
+    apollo_entity_id: String,
+    #[builder(into)]
+    apollo_environment_id: String,
 }
 impl WitchcraftEnvelopeV1 {
     ///"envelope.1"
@@ -105,13 +109,23 @@ impl WitchcraftEnvelopeV1 {
     pub fn payload(&self) -> &conjure_object::Any {
         &self.payload
     }
+    ///Apollo entity id
+    #[inline]
+    pub fn apollo_entity_id(&self) -> &str {
+        &*self.apollo_entity_id
+    }
+    ///Apollo environment id
+    #[inline]
+    pub fn apollo_environment_id(&self) -> &str {
+        &*self.apollo_environment_id
+    }
 }
 impl ser::Serialize for WitchcraftEnvelopeV1 {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
-        let size = 13usize;
+        let size = 15usize;
         let mut s = s.serialize_struct("WitchcraftEnvelopeV1", size)?;
         s.serialize_field("type", &self.type_)?;
         s.serialize_field("deployment", &self.deployment)?;
@@ -126,6 +140,8 @@ impl ser::Serialize for WitchcraftEnvelopeV1 {
         s.serialize_field("product", &self.product)?;
         s.serialize_field("productVersion", &self.product_version)?;
         s.serialize_field("payload", &self.payload)?;
+        s.serialize_field("apolloEntityId", &self.apollo_entity_id)?;
+        s.serialize_field("apolloEnvironmentId", &self.apollo_environment_id)?;
         s.end()
     }
 }
@@ -150,6 +166,8 @@ impl<'de> de::Deserialize<'de> for WitchcraftEnvelopeV1 {
                 "product",
                 "productVersion",
                 "payload",
+                "apolloEntityId",
+                "apolloEnvironmentId",
             ],
             Visitor_,
         )
@@ -178,6 +196,8 @@ impl<'de> de::Visitor<'de> for Visitor_ {
         let mut product = None;
         let mut product_version = None;
         let mut payload = None;
+        let mut apollo_entity_id = None;
+        let mut apollo_environment_id = None;
         while let Some(field_) = map_.next_key()? {
             match field_ {
                 Field_::Type => type_ = Some(map_.next_value()?),
@@ -193,6 +213,10 @@ impl<'de> de::Visitor<'de> for Visitor_ {
                 Field_::Product => product = Some(map_.next_value()?),
                 Field_::ProductVersion => product_version = Some(map_.next_value()?),
                 Field_::Payload => payload = Some(map_.next_value()?),
+                Field_::ApolloEntityId => apollo_entity_id = Some(map_.next_value()?),
+                Field_::ApolloEnvironmentId => {
+                    apollo_environment_id = Some(map_.next_value()?);
+                }
                 Field_::Unknown_ => {
                     map_.next_value::<de::IgnoredAny>()?;
                 }
@@ -250,6 +274,14 @@ impl<'de> de::Visitor<'de> for Visitor_ {
             Some(v) => v,
             None => return Err(de::Error::missing_field("payload")),
         };
+        let apollo_entity_id = match apollo_entity_id {
+            Some(v) => v,
+            None => return Err(de::Error::missing_field("apolloEntityId")),
+        };
+        let apollo_environment_id = match apollo_environment_id {
+            Some(v) => v,
+            None => return Err(de::Error::missing_field("apolloEnvironmentId")),
+        };
         Ok(WitchcraftEnvelopeV1 {
             type_,
             deployment,
@@ -264,6 +296,8 @@ impl<'de> de::Visitor<'de> for Visitor_ {
             product,
             product_version,
             payload,
+            apollo_entity_id,
+            apollo_environment_id,
         })
     }
 }
@@ -281,6 +315,8 @@ enum Field_ {
     Product,
     ProductVersion,
     Payload,
+    ApolloEntityId,
+    ApolloEnvironmentId,
     Unknown_,
 }
 impl<'de> de::Deserialize<'de> for Field_ {
@@ -315,6 +351,8 @@ impl<'de> de::Visitor<'de> for FieldVisitor_ {
             "product" => Field_::Product,
             "productVersion" => Field_::ProductVersion,
             "payload" => Field_::Payload,
+            "apolloEntityId" => Field_::ApolloEntityId,
+            "apolloEnvironmentId" => Field_::ApolloEnvironmentId,
             _ => Field_::Unknown_,
         };
         Ok(v)

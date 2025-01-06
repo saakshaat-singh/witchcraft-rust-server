@@ -305,7 +305,6 @@ use tokio::runtime::{Handle, Runtime};
 use tokio::signal::unix::{self, SignalKind};
 use tokio::{pin, runtime, select, time};
 use witchcraft_log::{error, fatal, info};
-use witchcraft_metrics::MetricRegistry;
 
 pub use body::{RequestBody, ResponseWriter};
 use config::install::InstallConfig;
@@ -434,7 +433,7 @@ where
     let runtime_config_ok = Arc::new(AtomicBool::new(true));
     let runtime_config = load_runtime(&handle, &runtime_config_ok)?;
 
-    let metrics = Arc::new(MetricRegistry::new());
+    let metrics = logging::metric::registry();
 
     let loggers = handle.block_on(logging::init(
         &metrics,

@@ -26,6 +26,10 @@ pub struct AuditLogV3 {
     organizations: Vec<super::Organization>,
     event_id: conjure_object::Uuid,
     #[builder(default, into)]
+    log_entry_id: Option<conjure_object::Uuid>,
+    #[builder(default, into)]
+    sequence_id: Option<i32>,
+    #[builder(default, into)]
     user_agent: Option<String>,
     #[builder(default, list(item(type = String, into)))]
     categories: Vec<String>,
@@ -163,10 +167,22 @@ impl AuditLogV3 {
     pub fn organizations(&self) -> &[super::Organization] {
         &*self.organizations
     }
-    ///Unique identifier for this audit log event.
+    ///Unique identifier for this audit log event. If there are multiple log entries associated with this
+    ///particular audit event, they will share the same eventId but will have different logEntryId and different
+    ///sequenceId.
     #[inline]
     pub fn event_id(&self) -> conjure_object::Uuid {
         self.event_id
+    }
+    ///Unique identifier for this audit log.
+    #[inline]
+    pub fn log_entry_id(&self) -> Option<conjure_object::Uuid> {
+        self.log_entry_id.as_ref().map(|o| *o)
+    }
+    ///Orders the log entries when there are multiple entries for the same event.
+    #[inline]
+    pub fn sequence_id(&self) -> Option<i32> {
+        self.sequence_id.as_ref().map(|o| *o)
     }
     ///The user agent of the user that originated this log.
     #[inline]
@@ -208,6 +224,10 @@ impl AuditLogV3 {
     pub fn source_origin(&self) -> Option<&str> {
         self.source_origin.as_ref().map(|o| &**o)
     }
+    ///The parameters known at method invocation time.
+    ///
+    ///Note that all keys must be known to the audit library. Typically, entries in the request and response
+    ///params will be dependent on the `categories` field defined above.
     #[deprecated(
         note = "Use requestFields instead.\n\nShould be translated to requestFields during emitting if requestFields is missing, by dropping the level\nfrom the SensitivityTaggedValue and directly using the payload as the value for the map.\n"
     )]
@@ -229,6 +249,10 @@ impl AuditLogV3 {
     ) -> &std::collections::BTreeMap<String, conjure_object::Any> {
         &self.request_fields
     }
+    ///Information derived within a method, commonly parts of the return value.
+    ///
+    ///Note that all keys must be known to the audit library. Typically, entries in the request and response
+    ///params will be dependent on the `categories` field defined above.
     #[deprecated(
         note = "Use resultFields instead.\n\nShould be translated to resultFields during emitting if resultFields is missing, by dropping the level\nfrom the SensitivityTaggedValue and directly using the payload as the value for the map.\n"
     )]
@@ -318,6 +342,14 @@ impl ser::Serialize for AuditLogV3 {
         }
         let skip_organizations = self.organizations.is_empty();
         if !skip_organizations {
+            size += 1;
+        }
+        let skip_log_entry_id = self.log_entry_id.is_none();
+        if !skip_log_entry_id {
+            size += 1;
+        }
+        let skip_sequence_id = self.sequence_id.is_none();
+        if !skip_sequence_id {
             size += 1;
         }
         let skip_user_agent = self.user_agent.is_none();
@@ -412,6 +444,16 @@ impl ser::Serialize for AuditLogV3 {
             s.serialize_field("organizations", &self.organizations)?;
         }
         s.serialize_field("eventId", &self.event_id)?;
+        if skip_log_entry_id {
+            s.skip_field("logEntryId")?;
+        } else {
+            s.serialize_field("logEntryId", &self.log_entry_id)?;
+        }
+        if skip_sequence_id {
+            s.skip_field("sequenceId")?;
+        } else {
+            s.serialize_field("sequenceId", &self.sequence_id)?;
+        }
         if skip_user_agent {
             s.skip_field("userAgent")?;
         } else {
@@ -517,6 +559,8 @@ impl<'de> de::Deserialize<'de> for AuditLogV3 {
                 "producerType",
                 "organizations",
                 "eventId",
+                "logEntryId",
+                "sequenceId",
                 "userAgent",
                 "categories",
                 "entities",
@@ -562,6 +606,8 @@ impl<'de> de::Visitor<'de> for Visitor_ {
         let mut producer_type = None;
         let mut organizations = None;
         let mut event_id = None;
+        let mut log_entry_id = None;
+        let mut sequence_id = None;
         let mut user_agent = None;
         let mut categories = None;
         let mut entities = None;
@@ -594,6 +640,8 @@ impl<'de> de::Visitor<'de> for Visitor_ {
                 Field_::ProducerType => producer_type = Some(map_.next_value()?),
                 Field_::Organizations => organizations = Some(map_.next_value()?),
                 Field_::EventId => event_id = Some(map_.next_value()?),
+                Field_::LogEntryId => log_entry_id = Some(map_.next_value()?),
+                Field_::SequenceId => sequence_id = Some(map_.next_value()?),
                 Field_::UserAgent => user_agent = Some(map_.next_value()?),
                 Field_::Categories => categories = Some(map_.next_value()?),
                 Field_::Entities => entities = Some(map_.next_value()?),
@@ -661,6 +709,14 @@ impl<'de> de::Visitor<'de> for Visitor_ {
         let event_id = match event_id {
             Some(v) => v,
             None => return Err(de::Error::missing_field("eventId")),
+        };
+        let log_entry_id = match log_entry_id {
+            Some(v) => v,
+            None => Default::default(),
+        };
+        let sequence_id = match sequence_id {
+            Some(v) => v,
+            None => Default::default(),
         };
         let user_agent = match user_agent {
             Some(v) => v,
@@ -750,6 +806,8 @@ impl<'de> de::Visitor<'de> for Visitor_ {
             producer_type,
             organizations,
             event_id,
+            log_entry_id,
+            sequence_id,
             user_agent,
             categories,
             entities,
@@ -784,6 +842,8 @@ enum Field_ {
     ProducerType,
     Organizations,
     EventId,
+    LogEntryId,
+    SequenceId,
     UserAgent,
     Categories,
     Entities,
@@ -835,6 +895,8 @@ impl<'de> de::Visitor<'de> for FieldVisitor_ {
             "producerType" => Field_::ProducerType,
             "organizations" => Field_::Organizations,
             "eventId" => Field_::EventId,
+            "logEntryId" => Field_::LogEntryId,
+            "sequenceId" => Field_::SequenceId,
             "userAgent" => Field_::UserAgent,
             "categories" => Field_::Categories,
             "entities" => Field_::Entities,

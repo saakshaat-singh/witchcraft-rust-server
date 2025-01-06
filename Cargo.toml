@@ -10,3 +10,7 @@ members = [
     "witchcraft-server-ete",
     "witchcraft-server-macros",
 ]
+
+[patch.crates-io]
+exponential-decay-histogram = { git = "https://github.com/sfackler/exponential-decay-histogram", branch = "exemplars" }
+witchcraft-metrics = { git = "https://github.com/palantir/witchcraft-rust-logging", branch = "exemplars" }

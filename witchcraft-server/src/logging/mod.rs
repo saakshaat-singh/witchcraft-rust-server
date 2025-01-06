@@ -40,7 +40,7 @@ mod cleanup;
 mod format;
 mod logger;
 pub mod mdc;
-mod metric;
+pub(crate) mod metric;
 mod service;
 mod trace;
 

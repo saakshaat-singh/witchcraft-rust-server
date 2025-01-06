@@ -29,6 +29,8 @@ pub struct MetricLogV1 {
         )
     )]
     values: std::collections::BTreeMap<String, conjure_object::Any>,
+    #[builder(default, list(item(type = super::Sample)))]
+    samples: Vec<super::Sample>,
     #[builder(default, map(key(type = String, into), value(type = String, into)))]
     tags: std::collections::BTreeMap<String, String>,
     #[builder(default, into)]
@@ -80,6 +82,11 @@ impl MetricLogV1 {
     pub fn values(&self) -> &std::collections::BTreeMap<String, conjure_object::Any> {
         &self.values
     }
+    ///List of samples (if any) associated with the metric
+    #[inline]
+    pub fn samples(&self) -> &[super::Sample] {
+        &*self.samples
+    }
     ///Additional dimensions that describe the instance of the metric
     #[inline]
     pub fn tags(&self) -> &std::collections::BTreeMap<String, String> {
@@ -123,6 +130,10 @@ impl ser::Serialize for MetricLogV1 {
         if !skip_values {
             size += 1;
         }
+        let skip_samples = self.samples.is_empty();
+        if !skip_samples {
+            size += 1;
+        }
         let skip_tags = self.tags.is_empty();
         if !skip_tags {
             size += 1;
@@ -156,6 +167,11 @@ impl ser::Serialize for MetricLogV1 {
             s.skip_field("values")?;
         } else {
             s.serialize_field("values", &self.values)?;
+        }
+        if skip_samples {
+            s.skip_field("samples")?;
+        } else {
+            s.serialize_field("samples", &self.samples)?;
         }
         if skip_tags {
             s.skip_field("tags")?;
@@ -203,6 +219,7 @@ impl<'de> de::Deserialize<'de> for MetricLogV1 {
                 "metricName",
                 "metricType",
                 "values",
+                "samples",
                 "tags",
                 "uid",
                 "sid",
@@ -229,6 +246,7 @@ impl<'de> de::Visitor<'de> for Visitor_ {
         let mut metric_name = None;
         let mut metric_type = None;
         let mut values = None;
+        let mut samples = None;
         let mut tags = None;
         let mut uid = None;
         let mut sid = None;
@@ -242,6 +260,7 @@ impl<'de> de::Visitor<'de> for Visitor_ {
                 Field_::MetricName => metric_name = Some(map_.next_value()?),
                 Field_::MetricType => metric_type = Some(map_.next_value()?),
                 Field_::Values => values = Some(map_.next_value()?),
+                Field_::Samples => samples = Some(map_.next_value()?),
                 Field_::Tags => tags = Some(map_.next_value()?),
                 Field_::Uid => uid = Some(map_.next_value()?),
                 Field_::Sid => sid = Some(map_.next_value()?),
@@ -270,6 +289,10 @@ impl<'de> de::Visitor<'de> for Visitor_ {
             None => return Err(de::Error::missing_field("metricType")),
         };
         let values = match values {
+            Some(v) => v,
+            None => Default::default(),
+        };
+        let samples = match samples {
             Some(v) => v,
             None => Default::default(),
         };
@@ -303,6 +326,7 @@ impl<'de> de::Visitor<'de> for Visitor_ {
             metric_name,
             metric_type,
             values,
+            samples,
             tags,
             uid,
             sid,
@@ -318,6 +342,7 @@ enum Field_ {
     MetricName,
     MetricType,
     Values,
+    Samples,
     Tags,
     Uid,
     Sid,
@@ -350,6 +375,7 @@ impl<'de> de::Visitor<'de> for FieldVisitor_ {
             "metricName" => Field_::MetricName,
             "metricType" => Field_::MetricType,
             "values" => Field_::Values,
+            "samples" => Field_::Samples,
             "tags" => Field_::Tags,
             "uid" => Field_::Uid,
             "sid" => Field_::Sid,

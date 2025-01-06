@@ -10,6 +10,7 @@ pub enum WrappedLogV1Payload {
     EventLogV2(super::EventLogV2),
     MetricLogV1(super::MetricLogV1),
     AuditLogV2(super::AuditLogV2),
+    AuditLogV3(super::AuditLogV3),
     DiagnosticLogV1(super::DiagnosticLogV1),
 }
 impl ser::Serialize for WrappedLogV1Payload {
@@ -42,6 +43,10 @@ impl ser::Serialize for WrappedLogV1Payload {
             WrappedLogV1Payload::AuditLogV2(value) => {
                 map.serialize_entry(&"type", &"auditLogV2")?;
                 map.serialize_entry(&"auditLogV2", value)?;
+            }
+            WrappedLogV1Payload::AuditLogV3(value) => {
+                map.serialize_entry(&"type", &"auditLogV3")?;
+                map.serialize_entry(&"auditLogV3", value)?;
             }
             WrappedLogV1Payload::DiagnosticLogV1(value) => {
                 map.serialize_entry(&"type", &"diagnosticLogV1")?;
@@ -98,6 +103,10 @@ impl<'de> de::Visitor<'de> for Visitor_ {
                         let value = map.next_value()?;
                         WrappedLogV1Payload::AuditLogV2(value)
                     }
+                    (Variant_::AuditLogV3, Some(Variant_::AuditLogV3)) => {
+                        let value = map.next_value()?;
+                        WrappedLogV1Payload::AuditLogV3(value)
+                    }
                     (Variant_::DiagnosticLogV1, Some(Variant_::DiagnosticLogV1)) => {
                         let value = map.next_value()?;
                         WrappedLogV1Payload::DiagnosticLogV1(value)
@@ -141,6 +150,10 @@ impl<'de> de::Visitor<'de> for Visitor_ {
                         let value = map.next_value()?;
                         WrappedLogV1Payload::AuditLogV2(value)
                     }
+                    Variant_::AuditLogV3 => {
+                        let value = map.next_value()?;
+                        WrappedLogV1Payload::AuditLogV3(value)
+                    }
                     Variant_::DiagnosticLogV1 => {
                         let value = map.next_value()?;
                         WrappedLogV1Payload::DiagnosticLogV1(value)
@@ -176,6 +189,7 @@ enum Variant_ {
     EventLogV2,
     MetricLogV1,
     AuditLogV2,
+    AuditLogV3,
     DiagnosticLogV1,
 }
 impl Variant_ {
@@ -187,6 +201,7 @@ impl Variant_ {
             Variant_::EventLogV2 => "eventLogV2",
             Variant_::MetricLogV1 => "metricLogV1",
             Variant_::AuditLogV2 => "auditLogV2",
+            Variant_::AuditLogV3 => "auditLogV3",
             Variant_::DiagnosticLogV1 => "diagnosticLogV1",
         }
     }
@@ -216,6 +231,7 @@ impl<'de> de::Visitor<'de> for VariantVisitor_ {
             "eventLogV2" => Variant_::EventLogV2,
             "metricLogV1" => Variant_::MetricLogV1,
             "auditLogV2" => Variant_::AuditLogV2,
+            "auditLogV3" => Variant_::AuditLogV3,
             "diagnosticLogV1" => Variant_::DiagnosticLogV1,
             value => {
                 return Err(
@@ -228,6 +244,7 @@ impl<'de> de::Visitor<'de> for VariantVisitor_ {
                             "eventLogV2",
                             "metricLogV1",
                             "auditLogV2",
+                            "auditLogV3",
                             "diagnosticLogV1",
                         ],
                     ),
