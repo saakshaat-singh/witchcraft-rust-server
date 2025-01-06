@@ -46,7 +46,7 @@ struct Exemplar {
 
 pub fn registry() -> Arc<MetricRegistry> {
     let mut registry = MetricRegistry::new();
-    registry.set_exemplar_provider(provide_exemplar);
+    registry.set_exemplar_provider(Arc::new(provide_exemplar));
 
     Arc::new(registry)
 }
@@ -183,18 +183,18 @@ fn finish_log(
 }
 
 // We only track exemplars for calls with a sampled trace active.
-fn provide_exemplar() -> Option<Exemplar> {
+fn provide_exemplar() -> Option<Arc<dyn witchcraft_metrics::Exemplar>> {
     let span = zipkin::current()?;
 
     if span.sampled() != Some(true) {
         return None;
     }
 
-    Some(Exemplar {
+    Some(Arc::new(Exemplar {
         instant: Instant::now(),
         time: Utc::now(),
         trace_id: span.trace_id(),
-    })
+    }))
 }
 
 // We report the single exemplar with the highest value recorded within the logging window.
