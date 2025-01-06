@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Histogram and timer metrics now report exemplars.
+  links:
+  - https://github.com/palantir/witchcraft-rust-server/pull/215
